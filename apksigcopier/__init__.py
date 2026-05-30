@@ -377,7 +377,8 @@ def copy_apk(unsigned_apk: str, output_apk: str, *,
              copy_extra: Optional[bool] = None,
              exclude: Optional[Callable[[str], bool]] = None,
              realign: Optional[bool] = None,
-             zfe_size: Optional[int] = None) -> DateTime:
+             zfe_size: Optional[int] = None,
+             apksigner35_align: Optional[Dict[str, int]] = None) -> DateTime:
     """
     Copy APK like apksigner would, excluding files matched by exclude_from_copying().
 
@@ -467,9 +468,12 @@ def copy_apk(unsigned_apk: str, output_apk: str, *,
                 if info.filename in offsets:
                     raise ZipError(f"Duplicate ZIP entry: {info.filename!r}")
                 offsets[info.filename] = off_o = fho.tell()
-                if realign and info.compress_type == 0 and off_o != info.header_offset:
+                force_align = (apksigner35_align or {}).get(info.filename)
+                if realign and info.compress_type == 0 and \
+                        (force_align is not None or off_o != info.header_offset):
                     hdr = _realign_zip_entry(info, hdr, n, m, off_o,
-                                             pad_like_apksigner=not zfe_size)
+                                             pad_like_apksigner=not zfe_size,
+                                             force_align=force_align)
                 fho.write(hdr)
                 _copy_bytes(fhi, fho, info.compress_size)
             if info.flag_bits & 0x08:
@@ -504,8 +508,9 @@ def copy_apk(unsigned_apk: str, output_apk: str, *,
 
 # NB: doesn't sync local & CD headers!
 def _realign_zip_entry(info: zipfile.ZipInfo, hdr: bytes, n: int, m: int,
-                       off_o: int, pad_like_apksigner: bool = True) -> bytes:
-    align = 4096 if info.filename.endswith(".so") else 4
+                       off_o: int, *, pad_like_apksigner: bool = True,
+                       force_align: Optional[int] = None) -> bytes:
+    align = force_align or (4096 if info.filename.endswith(".so") else 4)
     old_off = 30 + n + m + info.header_offset
     new_off = 30 + n + m + off_o
     old_xtr = hdr[30 + n:30 + n + m]
@@ -516,13 +521,15 @@ def _realign_zip_entry(info: zipfile.ZipInfo, hdr: bytes, n: int, m: int,
             break
         if not (hdr_id == 0 and size == 0):
             if hdr_id == 0xd935:
-                if size >= 2:
+                if size >= 2 and force_align is None:
                     align = int.from_bytes(old_xtr[4:6], "little")
             else:
                 new_xtr += old_xtr[:size + 4]
         old_xtr = old_xtr[size + 4:]
-    if old_off % align == 0 and new_off % align != 0:
-        if pad_like_apksigner:
+    needs_pad = force_align is not None or \
+        (old_off % align == 0 and new_off % align != 0)
+    if needs_pad:
+        if pad_like_apksigner or force_align is not None:
             pad = (align - (new_off - m + len(new_xtr) + 6) % align) % align
             xtr = new_xtr + struct.pack("<HHH", 0xd935, 2 + pad, align) + pad * b"\x00"
         else:
@@ -531,6 +538,45 @@ def _realign_zip_entry(info: zipfile.ZipInfo, hdr: bytes, n: int, m: int,
         m_b = int.to_bytes(len(xtr), 2, "little")
         hdr = hdr[:28] + m_b + hdr[30:30 + n] + xtr
     return hdr
+
+
+def detect_apksigner35_align(apk_path: str) -> Dict[str, int]:
+    """
+    Detect 0xd935 alignment values in a signed APK.
+
+    Returns a dict of ``{filename: alignment_value}`` for uncompressed entries
+    that have a ``0xd935`` "Android ZIP Alignment Extra Field".
+    """
+    alignments: Dict[str, int] = {}
+    with open(apk_path, "rb") as fh:
+        data = fh.read()
+    pos = 0
+    while pos + 30 < len(data):
+        if data[pos:pos + 4] != b"\x50\x4b\x03\x04":
+            pos += 1
+            continue
+        n, m = struct.unpack("<HH", data[pos + 26:pos + 30])
+        name = data[pos + 30:pos + 30 + n].decode("utf-8", errors="replace")
+        compress_type = struct.unpack("<H", data[pos + 8:pos + 10])[0]
+        if name.endswith("/"):
+            pos += 30 + n + m
+            continue
+        if compress_type != 0:
+            compress_size = struct.unpack("<I", data[pos + 18:pos + 22])[0]
+            pos += 30 + n + m + compress_size
+            continue
+        extra = data[pos + 30 + n:pos + 30 + n + m]
+        xp = 0
+        while xp + 4 <= len(extra):
+            hdr_id, size = struct.unpack("<HH", extra[xp:xp + 4])
+            if hdr_id == 0xd935 and size >= 2:
+                align = struct.unpack("<H", extra[xp + 4:xp + 6])[0]
+                alignments[name] = align
+                break
+            xp += 4 + size
+        compress_size = struct.unpack("<I", data[pos + 18:pos + 22])[0]
+        pos += 30 + n + m + compress_size
+    return alignments
 
 
 def _copy_bytes(fhi: BinaryIO, fho: BinaryIO, size: int, blocksize: int = 4096) -> None:
@@ -640,7 +686,7 @@ def validate_differences(differences: Dict[str, Any]) -> Optional[str]:
 
     Returns None if valid, error otherwise.
     """
-    if set(differences) - {"files", "zipflinger_virtual_entry"}:
+    if set(differences) - {"files", "zipflinger_virtual_entry", "apksigner35_align"}:
         return "contains unknown key(s)"
     if "zipflinger_virtual_entry" in differences:
         if type(differences["zipflinger_virtual_entry"]) is not int:
@@ -859,7 +905,8 @@ def patch_v2_sig(extracted_v2_sig: Tuple[int, bytes], output_apk: str) -> None:
 def patch_apk(extracted_meta: ZipInfoDataPairs, extracted_v2_sig: Optional[Tuple[int, bytes]],
               unsigned_apk: str, output_apk: str, *,
               differences: Optional[Dict[str, Any]] = None,
-              exclude: Optional[Callable[[str], bool]] = None) -> None:
+              exclude: Optional[Callable[[str], bool]] = None,
+              apksigner35_align: Optional[Dict[str, int]] = None) -> None:
     """
     Patch extracted_meta + extracted_v2_sig (if not None) onto unsigned_apk and
     save as output_apk.
@@ -868,7 +915,10 @@ def patch_apk(extracted_meta: ZipInfoDataPairs, extracted_v2_sig: Optional[Tuple
         zfe_size = differences["zipflinger_virtual_entry"]
     else:
         zfe_size = None
-    date_time = copy_apk(unsigned_apk, output_apk, exclude=exclude, zfe_size=zfe_size)
+    if apksigner35_align is None and differences and "apksigner35_align" in differences:
+        apksigner35_align = differences["apksigner35_align"]
+    date_time = copy_apk(unsigned_apk, output_apk, exclude=exclude, zfe_size=zfe_size,
+                         apksigner35_align=apksigner35_align)
     patch_meta(extracted_meta, output_apk, date_time=date_time, differences=differences)
     if extracted_v2_sig is not None:
         patch_v2_sig(extracted_v2_sig, output_apk)
@@ -926,6 +976,11 @@ def do_extract(signed_apk: str, output_dir: str, v1_only: NoAutoYesBoolNone = NO
         fh.write(signed_sb)
     if not ignore_differences:
         differences = extract_differences(signed_apk, extracted_meta)
+        apksigner35_align = detect_apksigner35_align(signed_apk)
+        if apksigner35_align:
+            if differences is None:
+                differences = {}
+            differences["apksigner35_align"] = apksigner35_align
         if differences:
             with open(os.path.join(output_dir, "differences.json"), "w") as fh:
                 json.dump(differences, fh, sort_keys=True, indent=2)
@@ -1004,14 +1059,17 @@ def do_copy(signed_apk: str, unsigned_apk: str, output_apk: str,
     v1_only = noautoyes(v1_only)
     extracted_meta = tuple(extract_meta(signed_apk))
     differences = None
+    apksigner35_align: Optional[Dict[str, int]] = None
     if v1_only == YES:
         extracted_v2_sig = None
     else:
         extracted_v2_sig = extract_v2_sig(signed_apk, expected=v1_only == NO)
         if extracted_v2_sig is not None and not ignore_differences:
             differences = extract_differences(signed_apk, extracted_meta)
+            apksigner35_align = detect_apksigner35_align(signed_apk)
     patch_apk(extracted_meta, extracted_v2_sig, unsigned_apk, output_apk,
-              differences=differences, exclude=exclude)
+              differences=differences, exclude=exclude,
+              apksigner35_align=apksigner35_align)
 
 
 def do_compare(first_apk: str, second_apk: str, unsigned: bool = False,
