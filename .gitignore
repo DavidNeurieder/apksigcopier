@@ -9,3 +9,6 @@ __pycache__
 
 /apksigcopier.1
 /.tmp
+
+# tools
+/tools
