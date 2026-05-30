@@ -88,7 +88,7 @@ def exclude_from_copying(filename: str) -> bool:
     False
 
     >>> from apksigcopier import _state
-    >>> _state.exclude_all_meta = True
+    >>> _state.DEFAULT_CONFIG = _state.Config(exclude_all_meta=True)
     >>> exclude_from_copying("classes.dex")
     False
     >>> exclude_from_copying("META-INF/")
@@ -99,10 +99,10 @@ def exclude_from_copying(filename: str) -> bool:
     True
     >>> exclude_from_copying("META-INF/OOPS")
     False
-    >>> _state.exclude_all_meta = False
+    >>> _state.DEFAULT_CONFIG = _state.Config()
 
     """
-    return exclude_meta(filename) if _state.exclude_all_meta else exclude_default(filename)
+    return exclude_meta(filename) if _state.DEFAULT_CONFIG.exclude_all_meta else exclude_default(filename)
 
 
 def exclude_default(filename: str) -> bool:

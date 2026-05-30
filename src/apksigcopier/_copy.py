@@ -78,11 +78,11 @@ def copy_apk(unsigned_apk: str, output_apk: str, *,
 
     """
     if copy_extra is None:
-        copy_extra = _state.copy_extra_bytes
+        copy_extra = _state.DEFAULT_CONFIG.copy_extra_bytes
     if exclude is None:
         exclude = exclude_from_copying
     if realign is None:
-        realign = not _state.skip_realignment
+        realign = not _state.DEFAULT_CONFIG.skip_realignment
     with zipfile.ZipFile(unsigned_apk, "r") as zf:
         infos = zf.infolist()
     zdata = zip_data(unsigned_apk)

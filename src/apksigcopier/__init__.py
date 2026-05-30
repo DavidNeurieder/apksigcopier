@@ -28,9 +28,12 @@ from ._extract import (do_compare, do_copy, do_extract,  # noqa: F401
 from ._patch import patch_apk, patch_meta  # noqa: F401
 
 
+from ._config import Config  # noqa: F401
+
+
 def __getattr__(name: str):
     """Provide live access to mutable state variables."""
     if name in ("copy_extra_bytes", "exclude_all_meta", "skip_realignment"):
         from . import _state
-        return getattr(_state, name)
+        return getattr(_state.DEFAULT_CONFIG, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

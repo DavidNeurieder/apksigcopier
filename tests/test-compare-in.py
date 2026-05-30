@@ -11,6 +11,8 @@ import subprocess
 import sys
 import zipfile
 
+import dataclasses
+
 import apksigcopier as asc
 
 sys.stdout.reconfigure(line_buffering=True)
@@ -56,7 +58,8 @@ for apk in sorted(glob.glob("apks/apks/golden-unaligned-*out.apk")):
     print(apk)
     min_sdk_version = None if has_manifest(apk) else 24
     with asc.saved_state():
-        asc._state.skip_realignment = True
+        asc._state.DEFAULT_CONFIG = dataclasses.replace(
+            asc._state.DEFAULT_CONFIG, skip_realignment=True)
         try:
             asc.do_compare(apk, "apks/apks/golden-unaligned-in.apk",
                            unsigned=True, min_sdk_version=min_sdk_version,

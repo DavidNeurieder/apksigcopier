@@ -9,6 +9,7 @@ import zipfile
 from typing import Any
 
 from . import __version__, _state
+from ._config import Config
 from ._types import APKSigCopierError, NO, NOAUTOYES, VERIFY_CMD
 from ._version import NAME
 from ._extract import do_compare, do_copy, do_extract, do_patch
@@ -17,9 +18,11 @@ from ._extract import do_compare, do_copy, do_extract, do_patch
 def main() -> None:
     """CLI; requires click."""
 
-    _state.exclude_all_meta = os.environ.get("APKSIGCOPIER_EXCLUDE_ALL_META") in ("1", "yes", "true")
-    _state.copy_extra_bytes = os.environ.get("APKSIGCOPIER_COPY_EXTRA_BYTES") in ("1", "yes", "true")
-    _state.skip_realignment = os.environ.get("APKSIGCOPIER_SKIP_REALIGNMENT") in ("1", "yes", "true")
+    _state.DEFAULT_CONFIG = Config(
+        exclude_all_meta=os.environ.get("APKSIGCOPIER_EXCLUDE_ALL_META") in ("1", "yes", "true"),
+        copy_extra_bytes=os.environ.get("APKSIGCOPIER_COPY_EXTRA_BYTES") in ("1", "yes", "true"),
+        skip_realignment=os.environ.get("APKSIGCOPIER_SKIP_REALIGNMENT") in ("1", "yes", "true"),
+    )
 
     import click
 
