@@ -2,11 +2,14 @@
 # SPDX-FileCopyrightText: 2023 FC (Fay) Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import logging
 import os
 import os.path as osp
 import struct
 import zipfile
 import zlib
+
+logger = logging.getLogger(__name__)
 
 from typing import Optional, Tuple
 
@@ -137,6 +140,7 @@ def _find_apksigner(prefix: Optional[str] = None) -> Optional[str]:
             continue
         apk = osp.join(bt_dir, v, "apksigner")
         if osp.isfile(apk):
+            logger.info("Found apksigner: %s", apk)
             return apk
     return None
 

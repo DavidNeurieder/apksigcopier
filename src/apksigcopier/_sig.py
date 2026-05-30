@@ -2,9 +2,12 @@
 # SPDX-FileCopyrightText: 2023 FC (Fay) Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import logging
 import os
 import subprocess
 import tempfile
+
+logger = logging.getLogger(__name__)
 
 from typing import Optional, Tuple
 
@@ -102,6 +105,7 @@ def verify_apk(apk: str, min_sdk_version: Optional[int] = None,
     if min_sdk_version is not None:
         args += (f"--min-sdk-version={min_sdk_version}",)
     args += ("--", apk)
+    logger.info("Using apksigner: %s", args[0])
     try:
         subprocess.run(args, check=True, stdout=subprocess.PIPE)
     except subprocess.CalledProcessError:
@@ -117,6 +121,7 @@ def verify_apk(apk: str, min_sdk_version: Optional[int] = None,
         if min_sdk_version is not None:
             args += (f"--min-sdk-version={min_sdk_version}",)
         args += ("--", apk)
+        logger.info("Using apksigner: %s", apksigner)
         try:
             subprocess.run(args, check=True, stdout=subprocess.PIPE)
         except subprocess.CalledProcessError:
