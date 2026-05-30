@@ -4,12 +4,15 @@
 
 import os
 import os.path as osp
+import struct
+import zipfile
+import zlib
 
-from typing import Optional
+from typing import Optional, Tuple
 
 from . import _state
 from ._types import AUTO, COPY_EXCLUDE, NO, NOAUTOYES, YES, \
-    NoAutoYes, NoAutoYesBoolNone
+    NoAutoYes, NoAutoYesBoolNone, ZipData, ZipError
 
 
 def noautoyes(value: NoAutoYesBoolNone) -> NoAutoYes:
@@ -136,6 +139,58 @@ def _find_apksigner(prefix: Optional[str] = None) -> Optional[str]:
         if osp.isfile(apk):
             return apk
     return None
+
+
+def zip_data(apkfile: str, count: int = 1024) -> ZipData:
+    """
+    Extract central directory, EOCD, and offsets from ZIP.
+
+    Returns ZipData.
+
+    >>> import apksigcopier
+    >>> apk = "tests/apks/apks/golden-aligned-v1v2v3-out.apk"
+    >>> data = apksigcopier.zip_data(apk)
+    >>> data.cd_offset, data.eocd_offset
+    (12288, 12843)
+    >>> len(data.cd_and_eocd)
+    577
+
+    """
+    with open(apkfile, "rb") as fh:
+        fh.seek(-count, os.SEEK_END)
+        data = fh.read()
+        pos = data.rfind(b"\x50\x4b\x05\x06")
+        if pos == -1:
+            raise ZipError("Expected end of central directory record (EOCD)")
+        fh.seek(pos - len(data), os.SEEK_CUR)
+        eocd_offset = fh.tell()
+        fh.seek(16, os.SEEK_CUR)
+        cd_offset = int.from_bytes(fh.read(4), "little")
+        fh.seek(cd_offset)
+        cd_and_eocd = fh.read()
+    return ZipData(cd_offset, eocd_offset, cd_and_eocd)
+
+
+def _get_compresslevel(apkfile: str, info: zipfile.ZipInfo, data: bytes) -> int:
+    if info.compress_type != 8:
+        raise ZipError("Unsupported compress_type")
+    crc = _get_compressed_crc(apkfile, info)
+    for level in (9, 1):
+        comp = zlib.compressobj(level, 8, -15)
+        if zlib.crc32(comp.compress(data) + comp.flush()) == crc:
+            return level
+    raise ZipError("Unsupported compresslevel")
+
+
+def _get_compressed_crc(apkfile: str, info: zipfile.ZipInfo) -> int:
+    with open(apkfile, "rb") as fh:
+        fh.seek(info.header_offset)
+        hdr = fh.read(30)
+        if hdr[:4] != b"\x50\x4b\x03\x04":
+            raise ZipError("Expected local file header signature")
+        n, m = struct.unpack("<HH", hdr[26:30])
+        fh.seek(n + m, os.SEEK_CUR)
+        return zlib.crc32(fh.read(info.compress_size))
 
 
 def is_directory(filename: str) -> bool:

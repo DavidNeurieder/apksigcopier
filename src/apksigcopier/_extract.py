@@ -10,8 +10,9 @@ import zipfile
 
 from typing import Any, Callable, Dict, Iterator, Optional, Tuple
 
-from ._copy import detect_apksigner35_align, detect_zfe
-from ._sig import _get_compresslevel, extract_v2_sig
+from ._align import detect_apksigner35_align, detect_zfe
+from ._sig import extract_v2_sig
+from ._utils import _get_compresslevel
 from ._types import (APKSigCopierError, AUTO, META_EXT, NO, SIGBLOCK,
                      SIGOFFSET, VALID_ZIP_META, YES, APKZipInfo,
                      NoAutoYesBoolNone, ZipError, ZipInfoDataPairs)
