@@ -8,6 +8,7 @@ import zipfile
 
 from typing import Any, Callable, Dict, Optional, Tuple
 
+from ._config import Config
 from ._copy import copy_apk
 from ._sig import patch_v2_sig
 from ._types import (APKZipInfo, DATETIMEZERO, ZipError, ZipInfoDataPairs)
@@ -78,7 +79,8 @@ def patch_apk(extracted_meta: ZipInfoDataPairs,
               unsigned_apk: str, output_apk: str, *,
               differences: Optional[Dict[str, Any]] = None,
               exclude: Optional[Callable[[str], bool]] = None,
-              apksigner35_align: Optional[Dict[str, int]] = None) -> None:
+              apksigner35_align: Optional[Dict[str, int]] = None,
+              config: Optional[Config] = None) -> None:
     """
     Patch extracted_meta + extracted_v2_sig (if not None) onto unsigned_apk and
     save as output_apk.
@@ -90,7 +92,7 @@ def patch_apk(extracted_meta: ZipInfoDataPairs,
     if apksigner35_align is None and differences and "apksigner35_align" in differences:
         apksigner35_align = differences["apksigner35_align"]
     date_time = copy_apk(unsigned_apk, output_apk, exclude=exclude, zfe_size=zfe_size,
-                         apksigner35_align=apksigner35_align)
+                         apksigner35_align=apksigner35_align, config=config)
     patch_meta(extracted_meta, output_apk, date_time=date_time, differences=differences)
     if extracted_v2_sig is not None:
         patch_v2_sig(extracted_v2_sig, output_apk)

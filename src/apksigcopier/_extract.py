@@ -11,6 +11,7 @@ import zipfile
 from typing import Any, Callable, Dict, Iterator, Optional, Tuple
 
 from ._align import detect_apksigner35_align, detect_zfe
+from ._config import Config
 from ._sig import extract_v2_sig
 from ._utils import _get_compresslevel
 from ._types import (APKSigCopierError, AUTO, META_EXT, NO, SIGBLOCK,
@@ -187,8 +188,9 @@ def do_extract(signed_apk: str, output_dir: str, v1_only: NoAutoYesBoolNone = NO
 
 def do_patch(metadata_dir: str, unsigned_apk: str, output_apk: str,
              v1_only: NoAutoYesBoolNone = NO, *,
-             exclude: Optional[Callable[[str], bool]] = None,
-             ignore_differences: bool = False) -> None:
+              exclude: Optional[Callable[[str], bool]] = None,
+              ignore_differences: bool = False,
+              config: Optional[Config] = None) -> None:
     """
     Patch signatures from metadata_dir onto unsigned_apk and save as output_apk.
 
@@ -239,13 +241,14 @@ def do_patch(metadata_dir: str, unsigned_apk: str, output_apk: str,
     if not extracted_meta and extracted_v2_sig is None:
         raise APKSigCopierError("Expected v1 and/or v2/v3 signature, found neither")
     patch_apk(extracted_meta, extracted_v2_sig, unsigned_apk, output_apk,
-              differences=differences, exclude=exclude)
+              differences=differences, exclude=exclude, config=config)
 
 
 def do_copy(signed_apk: str, unsigned_apk: str, output_apk: str,
             v1_only: NoAutoYesBoolNone = NO, *,
-            exclude: Optional[Callable[[str], bool]] = None,
-            ignore_differences: bool = False) -> None:
+              exclude: Optional[Callable[[str], bool]] = None,
+              ignore_differences: bool = False,
+              config: Optional[Config] = None) -> None:
     """
     Copy signatures from signed_apk onto unsigned_apk and save as output_apk.
 
@@ -270,13 +273,14 @@ def do_copy(signed_apk: str, unsigned_apk: str, output_apk: str,
             apksigner35_align = detect_apksigner35_align(signed_apk)
     patch_apk(extracted_meta, extracted_v2_sig, unsigned_apk, output_apk,
               differences=differences, exclude=exclude,
-              apksigner35_align=apksigner35_align)
+              apksigner35_align=apksigner35_align, config=config)
 
 
 def do_compare(first_apk: str, second_apk: str, unsigned: bool = False,
                min_sdk_version: Optional[int] = None, *,
                ignore_differences: bool = False,
-               verify_cmd: Optional[Tuple[str, ...]] = None) -> None:
+               verify_cmd: Optional[Tuple[str, ...]] = None,
+               config: Optional[Config] = None) -> None:
     """
     Compare first_apk to second_apk by:
     * using apksigner to check if the first APK verifies
@@ -294,5 +298,5 @@ def do_compare(first_apk: str, second_apk: str, unsigned: bool = False,
         output_apk = os.path.join(tmpdir, "output.apk")
         exclude = exclude_default if unsigned else exclude_meta
         do_copy(first_apk, second_apk, output_apk, AUTO, exclude=exclude,
-                ignore_differences=ignore_differences)
+                ignore_differences=ignore_differences, config=config)
         verify_apk(output_apk, min_sdk_version=min_sdk_version, verify_cmd=verify_cmd)

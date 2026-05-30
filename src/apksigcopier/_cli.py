@@ -18,11 +18,12 @@ from ._extract import do_compare, do_copy, do_extract, do_patch
 def main() -> None:
     """CLI; requires click."""
 
-    _state.DEFAULT_CONFIG = Config(
+    config = Config(
         exclude_all_meta=os.environ.get("APKSIGCOPIER_EXCLUDE_ALL_META") in ("1", "yes", "true"),
         copy_extra_bytes=os.environ.get("APKSIGCOPIER_COPY_EXTRA_BYTES") in ("1", "yes", "true"),
         skip_realignment=os.environ.get("APKSIGCOPIER_SKIP_REALIGNMENT") in ("1", "yes", "true"),
     )
+    _state.DEFAULT_CONFIG = config
 
     import click
 
@@ -56,7 +57,7 @@ def main() -> None:
     @click.argument("unsigned_apk", type=click.Path(exists=True, dir_okay=False))
     @click.argument("output_apk", type=click.Path(dir_okay=False))
     def patch(*args: Any, **kwargs: Any) -> None:
-        do_patch(*args, **kwargs)
+        do_patch(*args, **kwargs, config=config)
 
     @cli.command(help="""
         Copy (extract & patch) signatures from signed to unsigned APK.
@@ -68,7 +69,7 @@ def main() -> None:
     @click.argument("unsigned_apk", type=click.Path(exists=True, dir_okay=False))
     @click.argument("output_apk", type=click.Path(dir_okay=False))
     def copy(*args: Any, **kwargs: Any) -> None:
-        do_copy(*args, **kwargs)
+        do_copy(*args, **kwargs, config=config)
 
     @cli.command(help="""
         Compare two APKs by copying the signature from the first to a copy of
@@ -86,7 +87,7 @@ def main() -> None:
     def compare(*args: Any, **kwargs: Any) -> None:
         if kwargs["verify_cmd"] is not None:
             kwargs["verify_cmd"] = tuple(kwargs["verify_cmd"].split())
-        do_compare(*args, **kwargs)
+        do_compare(*args, **kwargs, config=config)
 
     try:
         cli(prog_name=NAME)

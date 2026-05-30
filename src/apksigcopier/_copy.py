@@ -11,8 +11,9 @@ from typing import BinaryIO, Callable, Dict, Optional, Tuple
 
 from . import _state
 from ._align import zipflinger_virtual_entry
+from ._config import Config
 from ._types import DATETIMEZERO, DateTime, ZipError
-from ._utils import exclude_from_copying, zip_data
+from ._utils import exclude_default, exclude_meta, zip_data
 
 
 def copy_apk(unsigned_apk: str, output_apk: str, *,
@@ -20,7 +21,8 @@ def copy_apk(unsigned_apk: str, output_apk: str, *,
              exclude: Optional[Callable[[str], bool]] = None,
              realign: Optional[bool] = None,
              zfe_size: Optional[int] = None,
-             apksigner35_align: Optional[Dict[str, int]] = None) -> DateTime:
+             apksigner35_align: Optional[Dict[str, int]] = None,
+             config: Optional[Config] = None) -> DateTime:
     """
     Copy APK like apksigner would, excluding files matched by exclude_from_copying().
 
@@ -77,12 +79,14 @@ def copy_apk(unsigned_apk: str, output_apk: str, *,
     True
 
     """
+    if config is None:
+        config = _state.DEFAULT_CONFIG
     if copy_extra is None:
-        copy_extra = _state.DEFAULT_CONFIG.copy_extra_bytes
+        copy_extra = config.copy_extra_bytes
     if exclude is None:
-        exclude = exclude_from_copying
+        exclude = exclude_meta if config.exclude_all_meta else exclude_default
     if realign is None:
-        realign = not _state.DEFAULT_CONFIG.skip_realignment
+        realign = not config.skip_realignment
     with zipfile.ZipFile(unsigned_apk, "r") as zf:
         infos = zf.infolist()
     zdata = zip_data(unsigned_apk)
