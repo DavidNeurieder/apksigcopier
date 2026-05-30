@@ -1,3 +1,11 @@
+v2.0.0
+
+• support apksigner 35+: detect & replicate 0xd935 alignment extra fields.
+• restructure to src/ layout with split modules.
+• replace setup.py with pyproject.toml, add requirements.txt.
+• move test/ → tests/.
+• discover apksigner via ANDROID_HOME/~/Android/Sdk.
+
 v1.1.1
 
 • docs: update FAQ, add changelog.txt, add caveat about compare & signflinger.
