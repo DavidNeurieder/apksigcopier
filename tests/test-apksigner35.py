@@ -4,6 +4,9 @@
 
 """Tests for apksigner 35+ style alignment (0xd935 extra fields)."""
 
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
 import os
 import os.path as osp
 import shutil

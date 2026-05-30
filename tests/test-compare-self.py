@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # encoding: utf-8
 
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
 import glob
 import os
 import os.path as osp
