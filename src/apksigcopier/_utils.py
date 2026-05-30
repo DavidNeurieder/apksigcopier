@@ -2,6 +2,9 @@
 # SPDX-FileCopyrightText: 2023 FC (Fay) Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import os
+import os.path as osp
+
 from typing import Optional
 
 from . import _state
@@ -108,6 +111,31 @@ def exclude_default(filename: str) -> bool:
 def exclude_meta(filename: str) -> bool:
     """Like exclude_from_copying(); excludes directories and all metadata files."""
     return is_directory(filename) or is_meta(filename)
+
+
+def _find_apksigner(prefix: Optional[str] = None) -> Optional[str]:
+    """Find apksigner via ANDROID_HOME/ANDROID_SDK_ROOT.
+
+    With prefix="36" matches 36.0.0, 36.1.0, etc.  With prefix=None returns
+    the highest installed version.
+    """
+    sdk = (os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
+           or osp.expanduser("~/Android/Sdk"))
+    bt_dir = osp.join(sdk, "build-tools")
+    if not osp.isdir(bt_dir):
+        return None
+    versions = sorted(
+        (v for v in os.listdir(bt_dir) if osp.isdir(osp.join(bt_dir, v))),
+        key=lambda v: [int(x) for x in v.split(".")],
+        reverse=True,
+    )
+    for v in versions:
+        if prefix and not v.startswith(prefix):
+            continue
+        apk = osp.join(bt_dir, v, "apksigner")
+        if osp.isfile(apk):
+            return apk
+    return None
 
 
 def is_directory(filename: str) -> bool:

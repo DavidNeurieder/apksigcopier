@@ -8,7 +8,7 @@ PYCOVCLI  := PYTHONPATH=src $(PYCOV) -a -mapksigcopier._cli
 export PYTHONWARNINGS := default
 
 .PHONY: all install test test-cli doctest coverage lint lint-extra clean cleanup
-.PHONY: test-apks test-apks-compare-in test-apks-compare-self test-apks-copy
+.PHONY: test-apks test-apks-compare-in test-apks-compare-self test-apks-copy test-apksigner35
 
 all: apksigcopier.1
 
@@ -23,12 +23,12 @@ test-cli:
 
 doctest:
 	# NB: uses tests/apks/apks/*.apk
-	PYTHONPATH=src $(PYTHON) -m doctest src/apksigcopier/*.py
+	PYTHONPATH=src $(PYTHON) tests/run_doctests.py
 
 coverage:
 	# NB: uses tests/apks/apks/*.apk & modifies .tmp
 	mkdir -p .tmp/meta
-	PYTHONPATH=src $(PYCOV) -m doctest src/apksigcopier/*.py
+	PYTHONPATH=src $(PYCOV) tests/run_doctests.py
 	PYTHONPATH=src $(PYCOVCLI) extract tests/apks/apks/golden-aligned-v1v2v3-out.apk .tmp/meta
 	PYTHONPATH=src $(PYCOVCLI) patch .tmp/meta tests/apks/apks/golden-aligned-in.apk .tmp/patched.apk
 	PYTHONPATH=src $(PYCOVCLI) copy tests/apks/apks/golden-aligned-v1v2v3-out.apk \
@@ -40,7 +40,7 @@ coverage:
 	$(PYTHON) -mcoverage html
 	$(PYTHON) -mcoverage report
 
-test-apks: test-apks-compare-in test-apks-compare-self test-apks-copy
+test-apks: test-apks-compare-in test-apks-compare-self test-apks-copy test-apksigner35
 
 test-apks-compare-in:
 	cd tests && PYTHONPATH=../src ./test-compare-in.py
@@ -53,6 +53,9 @@ test-apks-compare-self:
 
 test-apks-copy:
 	cd tests && diff -Naur test-copy.out <( PYTHONPATH=../src $(PYTHON) ./test-copy.py )
+
+test-apksigner35:
+	cd tests && PYTHONPATH=../src $(PYTHON) ./test-apksigner35.py
 
 lint:
 	flake8 src/apksigcopier/*.py

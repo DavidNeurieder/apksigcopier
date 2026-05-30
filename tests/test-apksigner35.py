@@ -19,34 +19,9 @@ APKS_DIR = osp.join(osp.dirname(__file__), "apks", "apks")
 KEYSTORE = osp.join(osp.dirname(__file__), "keys", "debug.keystore")
 
 
-def _find_apksigner(prefix=None):
-    """Find apksigner via ANDROID_HOME/ANDROID_SDK_ROOT, optionally matching version prefix.
-    
-    With prefix="36" matches 36.0.0, 36.1.0, etc.  With prefix=None returns the
-    highest installed version.
-    """
-    sdk = (os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
-           or osp.expanduser("~/Android/Sdk"))
-    bt_dir = osp.join(sdk, "build-tools")
-    if not osp.isdir(bt_dir):
-        return None
-    versions = sorted(
-        (v for v in os.listdir(bt_dir) if osp.isdir(osp.join(bt_dir, v))),
-        key=lambda v: [int(x) for x in v.split(".")],
-        reverse=True,
-    )
-    for v in versions:
-        if prefix and not v.startswith(prefix):
-            continue
-        apk = osp.join(bt_dir, v, "apksigner")
-        if osp.isfile(apk):
-            return apk
-    return None
-
-
 # Both build-tools 34 and 36 must be installed for these tests.
-APKSIGNER = os.environ.get("APKSIGNER") or _find_apksigner("36")
-APKSIGNER34 = os.environ.get("APKSIGNER34") or _find_apksigner("34")
+APKSIGNER = os.environ.get("APKSIGNER") or asc._find_apksigner("36")
+APKSIGNER34 = os.environ.get("APKSIGNER34") or asc._find_apksigner("34")
 
 if not APKSIGNER:
     raise RuntimeError(

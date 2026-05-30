@@ -129,6 +129,7 @@ def verify_apk(apk: str, min_sdk_version: Optional[int] = None,
                verify_cmd: Optional[Tuple[str, ...]] = None) -> None:
     """Verifies APK using apksigner."""
     from ._types import VERIFY_CMD
+    from ._utils import _find_apksigner
     args = tuple(verify_cmd or VERIFY_CMD)
     if min_sdk_version is not None:
         args += (f"--min-sdk-version={min_sdk_version}",)
@@ -138,7 +139,22 @@ def verify_apk(apk: str, min_sdk_version: Optional[int] = None,
     except subprocess.CalledProcessError:
         raise APKSigCopierError(f"failed to verify {apk}")
     except FileNotFoundError:
-        raise APKSigCopierError(f"{args[0]} command not found")
+        if verify_cmd is not None:
+            raise APKSigCopierError(f"{args[0]} command not found")
+        apksigner = _find_apksigner()
+        if apksigner is None:
+            raise APKSigCopierError("apksigner not found — set APKSIGNER, ANDROID_HOME, "
+                                    "or install Android SDK build-tools")
+        args = (apksigner, "verify")
+        if min_sdk_version is not None:
+            args += (f"--min-sdk-version={min_sdk_version}",)
+        args += ("--", apk)
+        try:
+            subprocess.run(args, check=True, stdout=subprocess.PIPE)
+        except subprocess.CalledProcessError:
+            raise APKSigCopierError(f"failed to verify {apk}")
+        except FileNotFoundError:
+            raise APKSigCopierError(f"{apksigner} command not found")
 
 
 def _get_compresslevel(apkfile: str, info: zipfile.ZipInfo, data: bytes) -> int:

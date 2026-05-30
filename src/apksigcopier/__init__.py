@@ -10,14 +10,15 @@ apksigcopier - copy/extract/patch Android APK signatures & compare APKs.
 from ._version import __version__  # noqa: F401
 
 from ._state import (copy_extra_bytes, exclude_all_meta,  # noqa: F401
-                     skip_realignment)
+                     saved_state, skip_realignment)
 from ._types import (APKSigCopierError, APKSigningBlockError, AUTO,  # noqa: F401
                      DATETIMEZERO, META_EXT, NO, NOAUTOYES, NoAPKSigningBlock,  # noqa: F401
                      NoAutoYes, NoAutoYesBoolNone, SIGBLOCK, SIGOFFSET,
                      VALID_ZIP_META, YES, APKZipInfo, ZipError,
                      ZipInfoDataPairs)
-from ._utils import (exclude_default, exclude_from_copying,  # noqa: F401
-                     exclude_meta, is_directory, is_meta, noautoyes)
+from ._utils import (_find_apksigner, exclude_default,  # noqa: F401
+                     exclude_from_copying, exclude_meta, is_directory,
+                     is_meta, noautoyes)
 from ._sig import (extract_v2_sig, patch_v2_sig, verify_apk,  # noqa: F401
                    zip_data)
 from ._copy import (copy_apk, detect_apksigner35_align,  # noqa: F401

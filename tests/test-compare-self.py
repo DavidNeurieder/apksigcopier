@@ -13,27 +13,7 @@ import apksigcopier as asc
 sys.stdout.reconfigure(line_buffering=True)
 
 
-def _find_apksigner(prefix=None):
-    sdk = (os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
-           or osp.expanduser("~/Android/Sdk"))
-    bt_dir = osp.join(sdk, "build-tools")
-    if not osp.isdir(bt_dir):
-        return None
-    versions = sorted(
-        (v for v in os.listdir(bt_dir) if osp.isdir(osp.join(bt_dir, v))),
-        key=lambda v: [int(x) for x in v.split(".")],
-        reverse=True,
-    )
-    for v in versions:
-        if prefix and not v.startswith(prefix):
-            continue
-        apk = osp.join(bt_dir, v, "apksigner")
-        if osp.isfile(apk):
-            return apk
-    return None
-
-
-APKSIGNER = os.environ.get("APKSIGNER") or _find_apksigner()
+APKSIGNER = os.environ.get("APKSIGNER") or asc._find_apksigner()
 VERIFY_CMD = (APKSIGNER, "verify")
 
 
