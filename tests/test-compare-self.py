@@ -33,8 +33,7 @@ def _find_apksigner(prefix=None):
     return None
 
 
-APKSIGNER = os.environ.get("APKSIGNER") or _find_apksigner("34")
-APKSIGNER34 = os.environ.get("APKSIGNER34") or _find_apksigner("34")
+APKSIGNER = os.environ.get("APKSIGNER") or _find_apksigner()
 VERIFY_CMD = (APKSIGNER, "verify")
 
 
